@@ -1,0 +1,42 @@
+name: Veredicto
+
+# Revisa cada pull request y publica la revisión como comentario.
+# Seguridad (léelo antes de copiarlo a otro repositorio):
+#  - Usa "pull_request", NUNCA "pull_request_target": este último corre con secretos y permisos de
+#    escritura incluso para forks, y combinado con código ajeno es la causa de muchos robos de secretos.
+#  - Hace checkout de la rama BASE, no del PR: así el PR no puede modificar el revisor para robar la clave.
+#  - Solo permisos mínimos: leer código y escribir en pull requests.
+#  - No interpola datos controlados por el autor del PR (título, rama, descripción) dentro de comandos.
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    # Los forks y Dependabot no reciben secretos ni permiso de escritura: se omiten.
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]' &&
+      github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Revisar el pull request
+        env:
+          PYTHONPATH: src
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Si no existe el secreto, Veredicto funciona en modo simulado (sin IA) y lo indica en el comentario.
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: python -m veredicto github --repo "$GITHUB_REPOSITORY" --pr "$PR_NUMBER"

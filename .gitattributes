@@ -1,0 +1,3 @@
+# Los diffs de prueba se conservan EXACTAMENTE como están (sin convertir saltos de línea en Windows).
+testdata/*.diff -text
+*.sh text eol=lf
